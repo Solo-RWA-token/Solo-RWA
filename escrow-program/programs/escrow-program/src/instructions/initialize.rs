@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, Token, TokenAccount, Transfer};
-use crate::state::Escrow;
+use anchor_spl::token::{Mint};
+use crate::state::{Escrow, Milestone, EscrowStatus};
 use crate::error::ErrorCode;
 use crate::events::EscrowInitialized;
 
@@ -20,66 +20,68 @@ pub struct InitializeEscrow<'info> {
     )]
     pub escrow: Account<'info, Escrow>,
     
-    /// The buyer who is creating the escrow and depositing funds.
+    /// The buyer who is creating the escrow.
     #[account(mut)]
     pub buyer: Signer<'info>,
     
-    /// The seller address.
-    /// CHECK: We merely save this in the Escrow account for reference at this phase.
+    /// The seller address (OEM treasury).
+    /// CHECK: Reference to seller
     pub seller: UncheckedAccount<'info>,
     
-    /// The buyer's associated token account from which funds will be transferred.
-    #[account(mut)]
-    pub buyer_token: Account<'info, TokenAccount>,
-    
-    /// The token account belonging to the Escrow PDA. Funds will be locked here.
-    #[account(
-        init_if_needed, 
-        payer = buyer, 
-        associated_token::mint = mint, 
-        associated_token::authority = escrow
-    )]
-    pub escrow_token: Account<'info, TokenAccount>,
-    
-    /// The mint of the token being deposited. (e.g. USDC).
+    /// The mint of the token to be used (e.g. USDC).
     pub mint: Account<'info, Mint>,
+
+    /// The oracle authorized to sign off on milestones.
+    /// CHECK: Reference to oracle
+    pub oracle_signer: UncheckedAccount<'info>,
+
+    /// The arbitrator authorized to resolve disputes.
+    /// CHECK: Reference to arbitrator
+    pub arbitrator: UncheckedAccount<'info>,
     
-    pub token_program: Program<'info, Token>,
-    pub associated_token_program: Program<'info, anchor_spl::associated_token::AssociatedToken>,
     pub system_program: Program<'info, System>,
 }
 
 /// Main function to initialize an escrow reservation.
-pub fn initialize_escrow(ctx: Context<InitializeEscrow>, vehicle_id: String, amount: u64) -> Result<()> {
-    // 1. Verify that the deposit meets the minimum down payment requirement.
-    require!(amount >= MIN_DOWN, ErrorCode::InsufficientAmount);
+pub fn initialize_escrow(
+    ctx: Context<InitializeEscrow>, 
+    vehicle_id: String, 
+    total_amount: u64,
+    milestones: Vec<Milestone>,
+) -> Result<()> {
+    // 1. Verify milestones (must be 5, and bps must sum to 10000)
+    require!(milestones.len() == 5, ErrorCode::InvalidMilestones);
+    let mut total_bps: u16 = 0;
+    for m in &milestones {
+        total_bps = total_bps.checked_add(m.release_bps).ok_or(ErrorCode::InvalidMilestones)?;
+    }
+    require!(total_bps == 10000, ErrorCode::InvalidMilestones);
 
     let escrow = &mut ctx.accounts.escrow;
     
     // 2. Populate Escrow State Fields.
     escrow.buyer = *ctx.accounts.buyer.key;
     escrow.seller = *ctx.accounts.seller.key; 
-    escrow.amount = amount;
+    escrow.total_amount = total_amount;
+    escrow.deposited_amount = 0;
+    escrow.released_amount = 0;
     escrow.token_mint = ctx.accounts.mint.key();
-    escrow.status = 0; // Set initial status to "Locked"
+    escrow.oracle_signer = *ctx.accounts.oracle_signer.key;
+    escrow.arbitrator = *ctx.accounts.arbitrator.key;
+    escrow.status = EscrowStatus::Active as u8;
     escrow.bump = [ctx.bumps.escrow];
     escrow.created_at = Clock::get()?.unix_timestamp;
 
-    // 3. Initiate CPI to transfer tokens from the User to the Escrow PDA's associated token account.
-    let cpi_accounts = Transfer {
-        from: ctx.accounts.buyer_token.to_account_info(),
-        to: ctx.accounts.escrow_token.to_account_info(),
-        authority: ctx.accounts.buyer.to_account_info(),
-    };
-    let cpi_program = ctx.accounts.token_program.to_account_info();
-    let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-    anchor_spl::token::transfer(cpi_ctx, amount)?;
+    // Copy milestones to the fixed-size array in state
+    for (i, m) in milestones.iter().enumerate() {
+        escrow.milestones[i] = *m;
+    }
 
-    // 4. Emit initialization event containing details for processing off-chain (minting).
+    // 3. Emit initialization event.
     emit!(EscrowInitialized {
         escrow_key: escrow.key(),
         buyer: escrow.buyer,
-        amount,
+        total_amount,
         vehicle_id,
     });
     
