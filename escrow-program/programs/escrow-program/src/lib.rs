@@ -52,4 +52,19 @@ pub mod escrow_program {
     pub fn dispute_order(ctx: Context<DisputeOrder>) -> Result<()> {
         instructions::dispute_order(ctx)
     }
+
+    /// Creates a new milestone for an order.
+    pub fn create_milestone(
+        ctx: Context<CreateMilestone>,
+        index: u8,
+        name: [u8; 32],
+        funding_bps: u16,
+    ) -> Result<()> {
+        instructions::create_milestone(ctx, index, name, funding_bps)
+    }
+
+    /// Marks a milestone as completed.
+    pub fn complete_milestone(ctx: Context<CompleteMilestone>, index: u8) -> Result<()> {
+        instructions::complete_milestone(ctx, index)
+    }
 }
