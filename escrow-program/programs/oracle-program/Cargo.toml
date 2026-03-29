@@ -21,7 +21,9 @@ custom-panic = []
 
 
 [dependencies]
-anchor-lang = "0.32.1"
+anchor-lang = "0.30.1"
+escrow-program = { path = "../escrow-program", features = ["cpi"] }
+vehicle-nft-program = { path = "../vehicle-nft-program", features = ["cpi"] }
 
 
 [lints.rust]
