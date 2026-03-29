@@ -24,7 +24,7 @@ pub struct CompleteMilestone<'info> {
 }
 
 pub fn complete_milestone(ctx: Context<CompleteMilestone>, _index: u8) -> Result<()> {
-    let order = &ctx.accounts.order;
+    let order = &mut ctx.accounts.order;
     let milestone = &mut ctx.accounts.milestone;
 
     // 1. Verify oracle_signer
@@ -35,6 +35,11 @@ pub fn complete_milestone(ctx: Context<CompleteMilestone>, _index: u8) -> Result
         order.status == OrderStatus::Approved as u8 || order.status == OrderStatus::Processing as u8,
         ErrorCode::InvalidOrderState
     );
+
+    // Transition to Processing if currently Approved
+    if order.status == OrderStatus::Approved as u8 {
+        order.status = OrderStatus::Processing as u8;
+    }
 
     // 3. Mark as completed
     require!(!milestone.is_completed, ErrorCode::MilestoneAlreadyCompleted);
