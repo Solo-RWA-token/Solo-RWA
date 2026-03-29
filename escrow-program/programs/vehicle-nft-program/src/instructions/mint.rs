@@ -1,7 +1,8 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token::{Mint, Token, TokenAccount},
+    token::{Mint, TokenAccount, Token},
+    token_2022::Token2022,
 };
 use crate::state::{VehicleMetadata, VehicleStatus};
 
@@ -15,7 +16,7 @@ pub struct MintVehicleNft<'info> {
         seeds = [b"vehicle_metadata", mint.key().as_ref()],
         bump
     )]
-    pub vehicle_metadata: Account<'info, VehicleMetadata>,
+    pub vehicle_metadata: Box<Account<'info, VehicleMetadata>>,
 
     #[account(mut)]
     pub payer: Signer<'info>,
@@ -28,24 +29,13 @@ pub struct MintVehicleNft<'info> {
     #[account(mut)]
     pub master_edition: UncheckedAccount<'info>,
 
-    #[account(
-        init,
-        payer = payer,
-        mint::decimals = 0,
-        mint::authority = payer,
-        mint::freeze_authority = payer,
-        mint::token_program = token_2022_program,
-        extensions::non_transferable::authority = order_pda,
-    )]
-    pub mint: Box<InterfaceAccount<'info, Mint>>,
+    /// CHECK: Initialized manually
+    #[account(mut)]
+    pub mint: AccountInfo<'info>,
 
-    #[account(
-        init,
-        payer = payer,
-        associated_token::mint = mint,
-        associated_token::authority = order_pda,
-    )]
-    pub order_nft_account: Box<InterfaceAccount<'info, TokenAccount>>,
+    /// CHECK: Initialized manually
+    #[account(mut)]
+    pub order_nft_account: AccountInfo<'info>,
 
     /// CHECK: The buyer wallet
     pub buyer: UncheckedAccount<'info>,
@@ -55,8 +45,8 @@ pub struct MintVehicleNft<'info> {
 
     /// CHECK: Metaplex program
     pub token_metadata_program: UncheckedAccount<'info>,
-    pub token_2022_program: Program<'info, anchor_spl::token_2022::Token2022>,
-    pub token_program: Interface<'info, TokenInterface>,
+    pub token_2022_program: Program<'info, Token2022>,
+    pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
@@ -70,6 +60,7 @@ pub fn mint_vehicle_nft(
     delivery_est: String,
 ) -> Result<()> {
     let metadata = &mut ctx.accounts.vehicle_metadata;
+    metadata.mint = ctx.accounts.mint.key();
     metadata.vin = vin;
     metadata.model = model;
     metadata.color = color;
@@ -77,7 +68,7 @@ pub fn mint_vehicle_nft(
     metadata.order_pda = ctx.accounts.order_pda.key();
     metadata.buyer_wallet = ctx.accounts.buyer.key();
     metadata.delivery_est = delivery_est;
-    metadata.bump = [ctx.bumps.vehicle_metadata][0];
+    metadata.bump = ctx.bumps.vehicle_metadata;
 
     // CPI to Metaplex to create metadata and master edition (omitted for brevity, assume off-chain or full implementation)
     // In a real scenario, we'd use `mpl_token_metadata::instructions::CreateMetadataAccountV3Cpi`
