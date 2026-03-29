@@ -1,9 +1,12 @@
 use anchor_lang::prelude::*;
 
-pub mod instructions;
-use instructions::*;
+declare_id!("9z8m7n57uXMNRWFHYjUW6W2H4LzGxCsm6uc7mwDVx2Yx");
 
-declare_id!("9z8m7n57uXMNRWFHYjUW6W2H4LzGxCsm6uc7mwDVx"); // Placeholder
+pub mod instructions;
+pub mod events;
+pub mod error;
+
+use instructions::*;
 
 #[program]
 pub mod oracle_program {
@@ -11,10 +14,10 @@ pub mod oracle_program {
 
     pub fn submit_milestone(
         ctx: Context<SubmitMilestone>,
-        vehicle_id: String,
+        order_id: String,
         milestone_index: u8,
-        evidence_hash: [u8; 32],
+        is_last_milestone: bool,
     ) -> Result<()> {
-        instructions::submit_milestone(ctx, vehicle_id, milestone_index, evidence_hash)
+        instructions::submit_milestone(ctx, order_id, milestone_index, is_last_milestone)
     }
 }
