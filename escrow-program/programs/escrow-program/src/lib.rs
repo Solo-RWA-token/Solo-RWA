@@ -15,37 +15,41 @@ declare_id!("QdwyxM7n57uXMNRWFHYjUW6W2H4LzGxCsm6uc7mwDVx");
 pub mod escrow_program {
     use super::*;
 
-    /// Initializes a new escrow account.
-    pub fn initialize_escrow(
-        ctx: Context<InitializeEscrow>,
-        vehicle_id: String,
+    /// Initializes a new order.
+    pub fn initialize_order(
+        ctx: Context<InitializeOrder>,
+        order_id: String,
         total_amount: u64,
-        milestones: Vec<state::Milestone>,
     ) -> Result<()> {
-        instructions::initialize_escrow(ctx, vehicle_id, total_amount, milestones)
+        instructions::initialize_order(ctx, order_id, total_amount)
     }
 
-    /// Funds an existing escrow account.
-    pub fn fund_escrow(ctx: Context<FundEscrow>, vehicle_id: String, amount: u64) -> Result<()> {
-        instructions::fund_escrow(ctx, vehicle_id, amount)
-    }
-
-    /// Releases a milestone payment to the seller.
-    pub fn release_milestone(
-        ctx: Context<ReleaseMilestone>,
-        vehicle_id: String,
-        milestone_index: u8,
+    /// Approves an order and initializes the Voucher Mint.
+    pub fn approve_order(
+        ctx: Context<ApproveOrder>,
+        oracle_signer: Pubkey,
+        arbitrator: Pubkey,
     ) -> Result<()> {
-        instructions::release_milestone(ctx, vehicle_id, milestone_index)
+        instructions::approve_order(ctx, oracle_signer, arbitrator)
     }
 
-    /// Cancels an existing escrow account and refunds remaining funds to the buyer.
-    pub fn cancel_escrow(ctx: Context<CancelEscrow>, vehicle_id: String) -> Result<()> {
-        instructions::cancel_escrow(ctx, vehicle_id)
+    /// Funds a milestone and issues Voucher tokens to the buyer.
+    pub fn fund_milestone(ctx: Context<FundMilestone>, amount: u64) -> Result<()> {
+        instructions::fund_milestone(ctx, amount)
     }
 
-    /// Disputes an existing escrow account.
-    pub fn dispute_escrow(ctx: Context<DisputeEscrow>, vehicle_id: String) -> Result<()> {
-        instructions::dispute_escrow(ctx, vehicle_id)
+    /// Settles an order by swapping Vouchers for the Vehicle NFT.
+    pub fn settle_order(ctx: Context<SettleOrder>) -> Result<()> {
+        instructions::settle_order(ctx)
+    }
+
+    /// Cancels an existing order and refunds funds.
+    pub fn cancel_order(ctx: Context<CancelOrder>) -> Result<()> {
+        instructions::cancel_order(ctx)
+    }
+
+    /// Disputes an existing order.
+    pub fn dispute_order(ctx: Context<DisputeOrder>) -> Result<()> {
+        instructions::dispute_order(ctx)
     }
 }
