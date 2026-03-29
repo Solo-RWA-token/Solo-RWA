@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  walletAddress String    @unique
+  nonce         String?   // For SIWS authentication
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  purchases     Purchase[]
+  kycRecord     KycRecord?
+}
+
+model Vehicle {
+  id          String    @id @default(cuid())
+  vin         String    @unique
+  model       String
+  color       String
+  priceUsd    Float
+  status      String    // Available | Reserved | Sold
+  metadataUri String?   // IPFS URI
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  purchases   Purchase[]
+}
+
+model Purchase {
+  id             String    @id @default(cuid())
+  buyerWallet    String
+  user           User      @relation(fields: [buyerWallet], references: [walletAddress])
+  vehicleId      String
+  vehicle        Vehicle   @relation(fields: [vehicleId], references: [id])
+  escrowPda      String    @unique
+  nftMint        String?   @unique
+  totalUsdc      Float
+  paidUsdc       Float     @default(0)
+  status         String    // Active | Released | Refunded | Disputed
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  milestones     Milestone[]
+}
+
+model Milestone {
+  id              String    @id @default(cuid())
+  purchaseId      String
+  purchase        Purchase  @relation(fields: [purchaseId], references: [id])
+  name            String
+  releaseBps      Int
+  completed       Boolean   @default(false)
+  completedAt     DateTime?
+  evidenceHash    String?   // IPFS hash of evidence doc
+  oracleTxSig     String?
+}
+
+model KycRecord {
+  id            String    @id @default(cuid())
+  walletAddress String    @unique
+  user          User      @relation(fields: [walletAddress], references: [walletAddress])
+  providerRef   String?
+  status        String    // Pending | Verified | Rejected
+  verifiedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model AuditLog {
+  id          String    @id @default(cuid())
+  actor       String
+  action      String
+  targetId    String?
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+}

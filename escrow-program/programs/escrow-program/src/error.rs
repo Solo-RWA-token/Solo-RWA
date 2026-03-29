@@ -12,9 +12,9 @@ pub enum ErrorCode {
     /// Triggered when attempting to refund an escrow that has already been released to the seller.
     #[msg("Escrow has already been released or refunded.")]
     AlreadyReleased,
-    /// Triggered when the escrow is in an invalid state for the requested operation.
-    #[msg("Invalid escrow state for this operation.")]
-    InvalidEscrowState,
+    /// Triggered when the order is in an invalid state for the requested operation.
+    #[msg("Invalid order state for this operation.")]
+    InvalidOrderState,
     /// Triggered when the milestones' basis points do not sum to 10000.
     #[msg("Milestone basis points must sum to 10000 (100%).")]
     InvalidMilestones,

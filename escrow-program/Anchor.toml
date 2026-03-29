@@ -7,6 +7,8 @@ skip-lint = false
 
 [programs.localnet]
 escrow_program = "QdwyxM7n57uXMNRWFHYjUW6W2H4LzGxCsm6uc7mwDVx"
+oracle-program = "2q8gAfsXvrPtCLTKLfCo3tKZQ3z75kQT11QwbatkdAah"
+vehicle-nft-program = "8NwXWrPdthhmyGjwu2QBnDcJfNxnwjQvC2LDhS2pkCmJ"
 
 [registry]
 url = "https://api.apr.dev"
