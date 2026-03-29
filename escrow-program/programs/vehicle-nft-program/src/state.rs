@@ -11,6 +11,7 @@ pub enum VehicleStatus {
 
 #[account]
 pub struct VehicleMetadata {
+    pub mint: Pubkey,
     pub vin: String,
     pub model: String,
     pub color: String,
@@ -22,5 +23,5 @@ pub struct VehicleMetadata {
 }
 
 impl VehicleMetadata {
-    pub const SPACE: usize = 8 + (4 + 64) + (4 + 32) + (4 + 32) + 1 + 32 + 32 + (4 + 32) + 1;
+    pub const SPACE: usize = 8 + 32 + (4 + 64) + (4 + 32) + (4 + 32) + 1 + 32 + 32 + (4 + 32) + 1;
 }
