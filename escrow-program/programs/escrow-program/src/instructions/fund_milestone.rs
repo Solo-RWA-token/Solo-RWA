@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface, TransferChecked, MintTo};
+use anchor_spl::token::{Mint, TokenAccount, Token};
+use anchor_spl::associated_token::AssociatedToken;
 use crate::state::{Order, OrderStatus};
 use crate::error::ErrorCode;
 
@@ -11,48 +12,38 @@ pub struct FundMilestone<'info> {
         seeds = [b"order", buyer.key().as_ref(), order.order_id.as_bytes()],
         bump = order.bump
     )]
-    pub order: Account<'info, Order>,
+    pub order: Box<Account<'info, Order>>,
 
     #[account(mut)]
     pub buyer: Signer<'info>,
 
     /// The buyer's source token account (USDC).
+    /// CHECK: Validated in the instruction body
     #[account(mut)]
-    pub buyer_token: InterfaceAccount<'info, TokenAccount>,
+    pub buyer_token: AccountInfo<'info>,
 
     /// The program's destination token account (USDC) owned by the Order PDA.
-    #[account(
-        init_if_needed,
-        payer = buyer,
-        associated_token::mint = token_mint,
-        associated_token::authority = order,
-    )]
-    pub order_token: InterfaceAccount<'info, TokenAccount>,
+    /// CHECK: Validated in the instruction body
+    #[account(mut)]
+    pub order_token: AccountInfo<'info>,
 
     /// The custom Voucher Mint for this specific order.
-    #[account(
-        mut,
-        seeds = [b"voucher_mint", order.key().as_ref()],
-        bump
-    )]
-    pub voucher_mint: InterfaceAccount<'info, Mint>,
+    /// CHECK: Validated in the instruction body
+    #[account(mut)]
+    pub voucher_mint: AccountInfo<'info>,
 
     /// The buyer's associated token account for Voucher tokens.
-    #[account(
-        init_if_needed,
-        payer = buyer,
-        associated_token::mint = voucher_mint,
-        associated_token::authority = buyer,
-    )]
-    pub buyer_voucher_token: InterfaceAccount<'info, TokenAccount>,
+    /// CHECK: Validated in the instruction body
+    #[account(mut)]
+    pub buyer_voucher_token: AccountInfo<'info>,
 
     /// The underlying currency mint (e.g. USDC).
-    pub token_mint: InterfaceAccount<'info, Mint>,
+    /// CHECK: Validated in the instruction body
+    pub token_mint: AccountInfo<'info>,
 
-    pub token_program: Interface<'info, TokenInterface>,
-    pub associated_token_program: Program<'info, anchor_spl::associated_token::AssociatedToken>,
+    pub token_program: Program<'info, Token>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
-    pub rent: Sysvar<'info, Rent>,
 }
 
 pub fn fund_milestone(ctx: Context<FundMilestone>, amount: u64) -> Result<()> {
@@ -65,15 +56,14 @@ pub fn fund_milestone(ctx: Context<FundMilestone>, amount: u64) -> Result<()> {
     );
 
     // 2. CPI transfer from Buyer to Order PDA (USDC)
-    let cpi_accounts = TransferChecked {
+    let cpi_accounts = anchor_spl::token::Transfer {
         from: ctx.accounts.buyer_token.to_account_info(),
         to: ctx.accounts.order_token.to_account_info(),
         authority: ctx.accounts.buyer.to_account_info(),
-        mint: ctx.accounts.token_mint.to_account_info(),
     };
     let cpi_program = ctx.accounts.token_program.to_account_info();
     let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-    anchor_spl::token_interface::transfer_checked(cpi_ctx, amount, ctx.accounts.token_mint.decimals)?;
+    anchor_spl::token::transfer(cpi_ctx, amount)?;
 
     // 3. Mint Vouchers to Buyer
     let seeds = &[
@@ -84,13 +74,13 @@ pub fn fund_milestone(ctx: Context<FundMilestone>, amount: u64) -> Result<()> {
     ];
     let signer = &[&seeds[..]];
 
-    let cpi_mint_accounts = MintTo {
+    let cpi_mint_accounts = anchor_spl::token::MintTo {
         mint: ctx.accounts.voucher_mint.to_account_info(),
         to: ctx.accounts.buyer_voucher_token.to_account_info(),
         authority: order.to_account_info(),
     };
     let cpi_mint_ctx = CpiContext::new_with_signer(ctx.accounts.token_program.to_account_info(), cpi_mint_accounts, signer);
-    anchor_spl::token_interface::mint_to(cpi_mint_ctx, amount)?;
+    anchor_spl::token::mint_to(cpi_mint_ctx, amount)?;
 
     // 4. Update order state
     order.funded_amount = order.funded_amount.checked_add(amount).ok_or(ErrorCode::InsufficientAmount)?;
