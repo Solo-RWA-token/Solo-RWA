@@ -1,40 +1,65 @@
 use anchor_lang::prelude::*;
+use escrow_program::cpi::accounts::CompleteMilestone;
+use escrow_program::program::EscrowProgram;
+use vehicle_nft_program::cpi::accounts::UpdateVehicleStatus;
+use vehicle_nft_program::program::VehicleNftProgram;
 
 #[derive(Accounts)]
 pub struct SubmitMilestone<'info> {
     /// The oracle signer (authorized to submit milestones)
     pub oracle_signer: Signer<'info>,
 
-    /// CHECK: The order program to call via CPI
-    pub order_program: UncheckedAccount<'info>,
+    /// The order program to call via CPI
+    pub order_program: Program<'info, EscrowProgram>,
 
-    /// CHECK: The NFT program to call via CPI
-    pub vehicle_nft_program: UncheckedAccount<'info>,
+    /// The NFT program to call via CPI
+    pub vehicle_nft_program: Program<'info, VehicleNftProgram>,
 
-    /// CHECK: The order account to update
+    /// The order account to update
+    /// CHECK: Validated in the Order program
     #[account(mut)]
-    pub order: UncheckedAccount<'info>,
+    pub order: AccountInfo<'info>,
 
-    /// CHECK: The NFT metadata account to update
+    /// The milestone account to update
+    /// CHECK: Validated in the Order program
     #[account(mut)]
-    pub vehicle_metadata: UncheckedAccount<'info>,
+    pub milestone: AccountInfo<'info>,
+
+    /// The NFT metadata account to update
+    /// CHECK: Validated in the NFT program
+    #[account(mut)]
+    pub vehicle_metadata: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,
 }
 
 pub fn submit_milestone(
     ctx: Context<SubmitMilestone>,
-    order_id: String,
+    _order_id: String,
     milestone_index: u8,
     is_last_milestone: bool,
 ) -> Result<()> {
-    // 1. Verify oracle_signer is authorized (off-chain or in state)
+    // 1. CPI to Order Program to complete milestone
+    let cpi_order_program = ctx.accounts.order_program.to_account_info();
+    let cpi_order_accounts = CompleteMilestone {
+        order: ctx.accounts.order.to_account_info(),
+        milestone: ctx.accounts.milestone.to_account_info(),
+        oracle_signer: ctx.accounts.oracle_signer.to_account_info(),
+    };
+    let cpi_order_ctx = CpiContext::new(cpi_order_program, cpi_order_accounts);
+    escrow_program::cpi::complete_milestone(cpi_order_ctx, milestone_index)?;
 
-    // 2. Update production status in NFT program via CPI
-    // CpiContext::new(ctx.accounts.vehicle_nft_program.to_account_info(), ...)
-
-    // 3. If last milestone and fully funded, trigger settlement? 
-    // Or just mark as "ReadyForDelivery" in the Order program.
+    // 2. CPI to Vehicle NFT Program to update status
+    // Map milestone index to physical status if needed, or just increment
+    let new_status = if is_last_milestone { 2 } else { 1 }; // 1: InProduction, 2: ReadyForDelivery
+    
+    let cpi_nft_program = ctx.accounts.vehicle_nft_program.to_account_info();
+    let cpi_nft_accounts = UpdateVehicleStatus {
+        vehicle_metadata: ctx.accounts.vehicle_metadata.to_account_info(),
+        authority: ctx.accounts.oracle_signer.to_account_info(),
+    };
+    let cpi_nft_ctx = CpiContext::new(cpi_nft_program, cpi_nft_accounts);
+    vehicle_nft_program::cpi::update_vehicle_status(cpi_nft_ctx, new_status)?;
 
     Ok(())
 }
