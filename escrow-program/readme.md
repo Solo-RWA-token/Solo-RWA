@@ -27,12 +27,12 @@ graph TD
     subgraph "Financial Layer (Order Program)"
         C -->|Initialize/Approve| D[Order State Account]
         E[Buyer Wallet] -->|USDC| D
-        D -->|Mint & Lock| F[Voucher Token (T22)]
+        D -->|Mint & Lock| F["Voucher Token (T22)"]
         D -->|Custody| G[USDC Vault PDA]
     end
 
     subgraph "Asset Layer (NFT Program)"
-        C -->|Mint NFT| H[Vehicle NFT (T22)]
+        C -->|Mint NFT| H["Vehicle NFT (T22)"]
         H -->|Locked by| D
     end
 
@@ -47,18 +47,37 @@ graph TD
 This diagram maps the step-by-step experience for both the Buyer and the Seller.
 
 ```mermaid
-journey
-    title SRWA Vehicle Purchase Journey
-    section Order Setup
-      Buyer: Initialize Order: 5: Order PDA created
-      Seller: Approve Order: 5: Voucher Mint created
-    section Production & Funding
-      Buyer: Fund Milestone 1: 4: Vouchers received
-      Oracle: Update Production Status: 5: Off-chain ERP sync
-      Buyer: Fund Milestone 2: 4: More Vouchers received
-    section Delivery
-      Oracle: Mark Ready for Delivery: 5: Status updated to Ready
-      Buyer: Execute Settle Order: 5: NFT received, Vouchers burned
+flowchart TD
+    Start((Start)) --> Init[Buyer: Initialize Order]
+    Init --> Approve[Seller: Approve Order & Set Oracle]
+    Approve --> Fund1[Buyer: Fund Milestone 1]
+    Fund1 --> MintV1[Program: Mint Voucher tokens to Buyer]
+    MintV1 --> Prod1[Oracle: Update Production Status in ERP]
+    Prod1 --> Fund2[Buyer: Fund Remaining Milestones]
+    Fund2 --> MintV2[Program: Mint Remaining Voucher tokens]
+    MintV2 --> FinalProd[Oracle: Mark Vehicle as Ready for Delivery]
+    FinalProd --> Settle[Buyer: Settle Order]
+    Settle --> Swap[Program: Atomic Swap Vouchers for NFT]
+    Swap --> End((End: Vehicle Ownership Transferred))
+
+    subgraph "Order Setup"
+        Init
+        Approve
+    end
+
+    subgraph "Production & Funding"
+        Fund1
+        MintV1
+        Prod1
+        Fund2
+        MintV2
+    end
+
+    subgraph "Delivery & Settlement"
+        FinalProd
+        Settle
+        Swap
+    end
 ```
 
 ### 2.3 Data Flow Chart
