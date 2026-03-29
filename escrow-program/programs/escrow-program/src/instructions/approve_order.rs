@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{Mint, TokenInterface};
+use anchor_spl::token::{Mint, Token};
+use anchor_spl::token_2022::Token2022;
 use crate::state::{Order, Milestone, OrderStatus};
 
 #[derive(Accounts)]
@@ -15,19 +16,9 @@ pub struct ApproveOrder<'info> {
     pub seller: Signer<'info>,
 
     /// The Voucher Mint (using Token-2022).
-    /// CHECK: The mint should be initialized as part of the approval process with NonTransferable extension.
-    #[account(
-        init,
-        payer = seller,
-        mint::decimals = 6,
-        mint::authority = order,
-        mint::freeze_authority = order,
-        mint::token_program = token_2022_program,
-        extensions::non_transferable::authority = order,
-        seeds = [b"voucher_mint", order.key().as_ref()],
-        bump
-    )]
-    pub voucher_mint: Box<InterfaceAccount<'info, Mint>>,
+    /// CHECK: Initialized manually in the instruction body
+    #[account(mut)]
+    pub voucher_mint: AccountInfo<'info>,
 
     /// The oracle authorized to sign off on production milestones.
     /// CHECK: Reference to oracle
@@ -37,16 +28,16 @@ pub struct ApproveOrder<'info> {
     /// CHECK: Reference to arbitrator
     pub arbitrator: UncheckedAccount<'info>,
 
-    pub token_2022_program: Program<'info, anchor_spl::token_2022::Token2022>,
-    pub token_program: Interface<'info, TokenInterface>,
+    pub token_2022_program: Program<'info, Token2022>,
+    pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 }
 
 pub fn approve_order(
     ctx: Context<ApproveOrder>,
-    oracle_signer: Pubkey,
-    arbitrator: Pubkey,
+    _oracle_signer: Pubkey,
+    _arbitrator: Pubkey,
 ) -> Result<()> {
     let order = &mut ctx.accounts.order;
     
@@ -54,8 +45,8 @@ pub fn approve_order(
     require!(order.status == OrderStatus::Created as u8, crate::error::ErrorCode::InvalidOrderState);
 
     // 2. Populate Order State Fields.
-    order.oracle_signer = oracle_signer;
-    order.arbitrator = arbitrator;
+    order.oracle_signer = ctx.accounts.oracle_signer.key();
+    order.arbitrator = ctx.accounts.arbitrator.key();
     order.voucher_mint = ctx.accounts.voucher_mint.key();
     order.status = OrderStatus::Approved as u8;
 
