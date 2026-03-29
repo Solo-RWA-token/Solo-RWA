@@ -2,10 +2,11 @@ use anchor_lang::prelude::*;
 
 pub mod instructions;
 pub mod state;
+pub mod error;
 
 use instructions::*;
 
-declare_id!("8z8m7n57uXMNRWFHYjUW6W2H4LzGxCsm6uc7mwDVx"); // Placeholder, update with actual ID after build
+declare_id!("8z8m7n57uXMNRWFHYjUW6W2H4LzGxCsm6uc7mwDVx2Yx");
 
 #[program]
 pub mod vehicle_nft_program {
@@ -13,12 +14,12 @@ pub mod vehicle_nft_program {
 
     pub fn mint_vehicle_nft(
         ctx: Context<MintVehicleNft>,
-        vin_hash: [u8; 32],
+        vin: String,
         model: String,
         color: String,
         delivery_est: String,
     ) -> Result<()> {
-        instructions::mint_vehicle_nft(ctx, vin_hash, model, color, delivery_est)
+        instructions::mint_vehicle_nft(ctx, vin, model, color, delivery_est)
     }
 
     pub fn update_vehicle_status(ctx: Context<UpdateVehicleStatus>, new_status: u8) -> Result<()> {
