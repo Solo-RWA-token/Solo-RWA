@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
-use crate::state::{Order, OrderStatus};
+use crate::state::Order;
+use crate::state::OrderStatus;
 
 #[derive(Accounts)]
 #[instruction(order_id: String)]
@@ -16,11 +17,9 @@ pub struct InitializeOrder<'info> {
     #[account(mut)]
     pub buyer: Signer<'info>,
 
-    /// The seller address (OEM treasury).
     /// CHECK: Reference to seller
     pub seller: UncheckedAccount<'info>,
 
-    /// The underlying currency mint (e.g. USDC).
     /// CHECK: Reference to currency mint
     pub token_mint: UncheckedAccount<'info>,
 
@@ -33,16 +32,16 @@ pub fn initialize_order(
     total_amount: u64,
 ) -> Result<()> {
     let order = &mut ctx.accounts.order;
-    order.buyer = *ctx.accounts.buyer.key;
-    order.seller = *ctx.accounts.seller.key;
+    order.buyer = ctx.accounts.buyer.key();
+    order.seller = ctx.accounts.seller.key();
     order.total_amount = total_amount;
     order.funded_amount = 0;
-    order.token_mint = *ctx.accounts.token_mint.key;
+    order.token_mint = ctx.accounts.token_mint.key();
     order.status = OrderStatus::Created as u8;
-    order.bump = [ctx.bumps.order][0];
+    order.bump = ctx.bumps.order;
     order.created_at = Clock::get()?.unix_timestamp;
     order.order_id = order_id;
-    order.milestone_count = 0; // Will be set during approval
+    order.milestone_count = 0; 
 
     Ok(())
 }
