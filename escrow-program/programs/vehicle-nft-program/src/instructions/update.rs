@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use crate::state::{VehicleMetadata, VehicleStatus};
+use crate::state::VehicleMetadata;
 
 #[derive(Accounts)]
 pub struct UpdateVehicleStatus<'info> {
@@ -12,12 +12,6 @@ pub struct UpdateVehicleStatus<'info> {
 
     /// The oracle or authority allowed to update status.
     pub authority: Signer<'info>,
-}
-
-#[account]
-pub struct DummyMetadata {
-    pub mint: Pubkey,
-    pub bump: u8,
 }
 
 pub fn update_vehicle_status(ctx: Context<UpdateVehicleStatus>, new_status: u8) -> Result<()> {
