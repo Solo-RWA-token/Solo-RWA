@@ -1,11 +1,13 @@
-pub mod initialize;
-pub mod fund;
-pub mod release;
-pub mod cancel;
-pub mod dispute;
+pub mod initialize_order;
+pub mod approve_order;
+pub mod fund_milestone;
+pub mod settle_order;
+pub mod cancel_order;
+pub mod dispute_order;
 
-pub use initialize::*;
-pub use fund::*;
-pub use release::*;
-pub use cancel::*;
-pub use dispute::*;
+pub use initialize_order::*;
+pub use approve_order::*;
+pub use fund_milestone::*;
+pub use settle_order::*;
+pub use cancel_order::*;
+pub use dispute_order::*;
