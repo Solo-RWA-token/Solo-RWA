@@ -21,18 +21,19 @@ The following diagram illustrates the high-level interaction between the off-cha
 graph TD
     subgraph "Off-Chain Layer (ERP & Oracle)"
         A[OEM ERP System] -->|Webhook| B[Oracle Bridge]
-        B -->|Signs Proof| C[Solana Blockchain]
+        B -->|Signs Proof| C[Oracle Program]
     end
 
     subgraph "Financial Layer (Order Program)"
-        C -->|Initialize/Approve| D[Order State Account]
+        C -->|CPI: complete_milestone| D[Order State Account]
+        D -->|Milestones| M[Milestone Accounts]
         E[Buyer Wallet] -->|USDC| D
         D -->|Mint & Lock| F["Voucher Token (T22)"]
         D -->|Custody| G[USDC Vault PDA]
     end
 
     subgraph "Asset Layer (NFT Program)"
-        C -->|Mint NFT| H["Vehicle NFT (T22)"]
+        C -->|CPI: update_status| H["Vehicle NFT (T22)"]
         H -->|Locked by| D
     end
 
@@ -178,7 +179,22 @@ sequenceDiagram
     Note over O: If 100%, Status: ReadyForDelivery
 ```
 
-### 5.3 Settlement & Atomic Swap
+### 5.3 Oracle Milestone Submission
+```mermaid
+sequenceDiagram
+    participant E as OEM ERP
+    participant O as Oracle Program
+    participant R as Order Program
+    participant N as NFT Program
+
+    E->>O: submit_milestone(order_id, milestone_index)
+    O->>R: CPI: complete_milestone(index)
+    Note over R: Mark Milestone account as is_completed
+    O->>N: CPI: update_vehicle_status(new_status)
+    Note over N: Update NFT metadata status
+```
+
+### 5.4 Settlement & Atomic Swap
 ```mermaid
 sequenceDiagram
     participant B as Buyer
