@@ -15,15 +15,13 @@ pub struct BurnVehicleNft<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
 
+    /// CHECK: Validated in instruction
     #[account(mut)]
-    pub mint: Account<'info, Mint>,
+    pub mint: AccountInfo<'info>,
 
-    #[account(
-        mut,
-        associated_token::mint = mint,
-        associated_token::authority = payer,
-    )]
-    pub token_account: Account<'info, TokenAccount>,
+    /// CHECK: Validated in instruction
+    #[account(mut)]
+    pub token_account: AccountInfo<'info>,
 
     pub token_program: Program<'info, Token>,
 }
