@@ -37,7 +37,7 @@ pub fn create_milestone(
     let milestone = &mut ctx.accounts.milestone;
 
     // 1. Verify seller
-    require!(ctx.accounts.seller.key() == order.seller, ErrorCode::UnauthorizedOracle); // Reuse or add UnauthorizedSeller
+    require!(ctx.accounts.seller.key() == order.seller, ErrorCode::UnauthorizedOracle); 
 
     // 2. Verify order status
     require!(order.status == OrderStatus::Approved as u8, ErrorCode::InvalidOrderState);
