@@ -1,15 +1,15 @@
 # ERP System: High-Level Architecture & Design
 
-## 1. Technology Stack
+## 1. Technology Stack & Current State
 
-*   **Backend Framework**: Node.js with TypeScript
-*   **API Framework**: Fastify (chosen for its high performance and low overhead compared to Express)
-*   **Frontend Framework**: Next.js (as per requirements)
-*   **Database**: PostgreSQL (for its robustness, support for JSONB, and transactional integrity)
-*   **Cache**: Redis (for caching, session management, and as a message broker for simple events)
-*   **Message Bus**: Apache Kafka (for the main event-driven backbone, ensuring durability and scalability)
-*   **Containerization**: Docker
-*   **Orchestration**: Kubernetes
+The platform is currently built as a **Next.js** application (`/solo/app`) with a **Prisma/PostgreSQL** backend. Our enterprise expansion will follow a hybrid model:
+
+*   **Frontend**: Next.js (Existing) - Handles Buyer/Seller UIs and core transaction flows.
+*   **API Layer (Core)**: Next.js API Routes (Existing) - Handles identity, vehicle listing, and purchase status.
+*   **Enterprise Microservices (New)**: Node.js with TypeScript + Fastify (Located in `/solo/offchain`) - Handles heavy enterprise modules (Financials, HR, SCM) to ensure high throughput and separation of concerns.
+*   **ORM**: Prisma (Existing) for core data; Knex/TypeORM for complex enterprise queries if needed.
+*   **Database**: PostgreSQL (Existing) with Schema-per-Tenant isolation for enterprise data.
+*   **Message Bus**: Apache Kafka - Synchronizes data between the Next.js core and enterprise microservices.
 
 ## 2. Architectural Principles
 
