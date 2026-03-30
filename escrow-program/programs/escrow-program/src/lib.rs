@@ -68,3 +68,11 @@ pub mod escrow_program {
         instructions::complete_milestone(ctx, index)
     }
 }
+
+#[event]
+pub struct MilestoneFunded {
+    pub order: Pubkey,
+    pub milestone_index: u8,
+    pub amount: u64,
+    pub funded_at: i64,
+}
