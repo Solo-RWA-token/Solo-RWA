@@ -29,7 +29,7 @@ graph TD
 
     subgraph "API Gateway & Auth"
         B[API Gateway]
-        C[Authentication Service (AuthN/AuthZ)]
+        C["Authentication Service (AuthN/AuthZ)"]
     end
 
     subgraph "Core ERP Microservices"
@@ -41,10 +41,10 @@ graph TD
     end
 
     subgraph "Data & Eventing Layer"
-        I[PostgreSQL (Write DB)]
-        J[PostgreSQL (Read Replicas)]
-        K[Apache Kafka (Event Bus)]
-        L[Redis (Cache)]
+        I["PostgreSQL (Write DB)"]
+        J["PostgreSQL (Read Replicas)"]
+        K["Apache Kafka (Event Bus)"]
+        L["Redis (Cache)"]
     end
 
     A --> B;

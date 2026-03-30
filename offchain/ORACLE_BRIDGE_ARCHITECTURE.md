@@ -17,17 +17,17 @@ graph TD
     end
 
     subgraph "Oracle Bridge Service"
-        B[API Layer (Fastify)]
+        B["API Layer (Fastify)"]
         C[Connection Pool Manager]
         D[Data Transformation Engine]
         E[Query Execution & Optimization]
         F[Error Recovery & Circuit Breaker]
-        G[CDC Listener (GoldenGate)]
+        G["CDC Listener (GoldenGate)"]
     end
 
     subgraph "Oracle Databases"
-        H[Oracle DB 1 (12c)]
-        I[Oracle DB 2 (19c)]
+        H["Oracle DB 1 (12c)"]
+        I["Oracle DB 2 (19c)"]
     end
 
     A -- REST/GraphQL --> B;
