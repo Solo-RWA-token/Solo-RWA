@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, TokenAccount, Token};
 use anchor_spl::associated_token::AssociatedToken;
-use crate::state::{Order, OrderStatus};
+use crate::state::{Order, Milestone, OrderStatus};
 use crate::error::ErrorCode;
 
 #[derive(Accounts)]
@@ -13,6 +13,14 @@ pub struct FundMilestone<'info> {
         bump = order.bump
     )]
     pub order: Box<Account<'info, Order>>,
+
+    #[account(
+        mut,
+        seeds = [b"milestone", order.key().as_ref(), &[milestone.index]],
+        bump,
+        constraint = milestone.order == order.key() @ ErrorCode::InvalidMilestones
+    )]
+    pub milestone: Account<'info, Milestone>,
 
     #[account(mut)]
     pub buyer: Signer<'info>,
@@ -48,6 +56,7 @@ pub struct FundMilestone<'info> {
 
 pub fn fund_milestone(ctx: Context<FundMilestone>, amount: u64) -> Result<()> {
     let order = &mut ctx.accounts.order;
+    let milestone = &mut ctx.accounts.milestone;
 
     // 1. Verify that the order is in the Approved or Processing status
     require!(
@@ -55,7 +64,19 @@ pub fn fund_milestone(ctx: Context<FundMilestone>, amount: u64) -> Result<()> {
         ErrorCode::InvalidOrderState
     );
 
-    // 2. CPI transfer from Buyer to Order PDA (USDC)
+    // 2. Pre-check: One-time exact funding logic
+    require!(!milestone.is_funded, ErrorCode::MilestoneAlreadyFunded);
+    
+    // Calculate expected amount for this milestone: (Total * BPS) / 10000
+    let expected_amount = order.total_amount
+        .checked_mul(milestone.funding_bps as u64)
+        .ok_or(ErrorCode::NumericalOverflow)?
+        .checked_div(10000)
+        .ok_or(ErrorCode::NumericalOverflow)?;
+
+    require!(amount == expected_amount, ErrorCode::IncorrectFundingAmount);
+
+    // 3. CPI transfer from Buyer to Order PDA (USDC)
     let cpi_accounts = anchor_spl::token::Transfer {
         from: ctx.accounts.buyer_token.to_account_info(),
         to: ctx.accounts.order_token.to_account_info(),
@@ -65,7 +86,7 @@ pub fn fund_milestone(ctx: Context<FundMilestone>, amount: u64) -> Result<()> {
     let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
     anchor_spl::token::transfer(cpi_ctx, amount)?;
 
-    // 3. Mint Vouchers to Buyer
+    // 4. Mint Vouchers to Buyer
     let seeds = &[
         b"order".as_ref(),
         order.buyer.as_ref(),
@@ -82,14 +103,23 @@ pub fn fund_milestone(ctx: Context<FundMilestone>, amount: u64) -> Result<()> {
     let cpi_mint_ctx = CpiContext::new_with_signer(ctx.accounts.token_program.to_account_info(), cpi_mint_accounts, signer);
     anchor_spl::token::mint_to(cpi_mint_ctx, amount)?;
 
-    // 4. Update order state
-    order.funded_amount = order.funded_amount.checked_add(amount).ok_or(ErrorCode::InsufficientAmount)?;
+    // 5. Update state
+    milestone.is_funded = true;
+    order.funded_amount = order.funded_amount.checked_add(amount).ok_or(ErrorCode::NumericalOverflow)?;
     order.status = OrderStatus::Processing as u8;
 
-    // 5. Check if fully funded
+    // 6. Check if fully funded
     if order.funded_amount >= order.total_amount {
         order.status = OrderStatus::ReadyForDelivery as u8;
     }
+
+    // 7. Emit event for UI reactivity
+    emit!(MilestoneFunded {
+        order: order.key(),
+        milestone_index: milestone.index,
+        amount,
+        funded_at: Clock::get()?.unix_timestamp,
+    });
 
     Ok(())
 }
