@@ -1,15 +1,12 @@
 # ERP System: High-Level Architecture & Design
 
-## 1. Technology Stack & Current State
+## 1. Technology Stack & Naming Convention
 
-The platform is currently built as a **Next.js** application (`/solo/app`) with a **Prisma/PostgreSQL** backend. Our enterprise expansion will follow a hybrid model:
-
-*   **Frontend**: Next.js (Existing) - Handles Buyer/Seller UIs and core transaction flows.
-*   **API Layer (Core)**: Next.js API Routes (Existing) - Handles identity, vehicle listing, and purchase status.
-*   **Enterprise Microservices (New)**: Node.js with TypeScript + Fastify (Located in `/solo/offchain`) - Handles heavy enterprise modules (Financials, HR, SCM) to ensure high throughput and separation of concerns.
-*   **ORM**: Prisma (Existing) for core data; Knex/TypeORM for complex enterprise queries if needed.
-*   **Database**: PostgreSQL (Existing) with Schema-per-Tenant isolation for enterprise data.
-*   **Message Bus**: Apache Kafka - Synchronizes data between the Next.js core and enterprise microservices.
+*   **Frontend**: Next.js (`/solo/app`)
+*   **Middleware**: Node.js with TypeScript + Fastify (`/solo/offchain`)
+*   **Backend-Onchain**: Solana Programs (`/solo/escrow-program`)
+*   **Database**: PostgreSQL (Existing)
+*   **Cache & Queue**: Redis
 
 ## 2. Architectural Principles
 
