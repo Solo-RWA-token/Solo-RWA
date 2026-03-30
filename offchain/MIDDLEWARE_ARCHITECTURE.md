@@ -15,9 +15,9 @@ For the current phase, we will use a simplified, monolithic approach for the mid
 
 ```mermaid
 graph TD
-    A[Frontend (Next.js)] --> B[Middleware (Node.js/Fastify)];
+    A["Frontend (Next.js)"] --> B["Middleware (Node.js/Fastify)"];
     B <--> C[PostgreSQL Database];
-    B --> D[Backend-Onchain (Solana)];
+    B --> D["Backend-Onchain (Solana)"];
     D -- Events --> B;
 ```
 
