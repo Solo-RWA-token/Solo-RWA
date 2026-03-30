@@ -109,7 +109,7 @@ describe("escrow-program", () => {
         seller: seller.publicKey,
         tokenMint: mint,
         systemProgram: SystemProgram.programId,
-      })
+      } as any)
       .rpc();
 
     const orderAccount = await program.account.order.fetch(orderPda);
@@ -133,7 +133,7 @@ describe("escrow-program", () => {
           tokenProgram: TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
           rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-        })
+        } as any)
         .signers([wrongSeller])
         .rpc();
       expect.fail("Should have failed with unauthorized signer");
@@ -165,7 +165,7 @@ describe("escrow-program", () => {
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
         rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-      })
+      } as any)
       .signers([seller])
       .rpc();
 
@@ -174,59 +174,113 @@ describe("escrow-program", () => {
     expect(orderAccount.voucherMint.toBase58()).to.equal(voucherMint.toBase58());
   });
 
-  it("Fails to fund milestone with insufficient balance", async () => {
-    const poorBuyer = Keypair.generate();
-    const poorBuyerAta = await createAccount(provider.connection, buyer, mint, poorBuyer.publicKey);
+  let milestonePda: PublicKey;
+  const milestoneIndex = 0;
+  const milestoneBps = 2000; // 20%
+
+  it("Creates a Milestone", async () => {
+    [milestonePda] = PublicKey.findProgramAddressSync(
+        [Buffer.from("milestone"), orderPda.toBuffer(), Buffer.from([milestoneIndex])],
+        program.programId
+    );
+
+    const name = Array.from(Buffer.from("Milestone 1".padEnd(32, "\0")));
     
+    await program.methods
+        .createMilestone(milestoneIndex, name, milestoneBps)
+        .accounts({
+            order: orderPda,
+            milestone: milestonePda,
+            seller: seller.publicKey,
+            systemProgram: SystemProgram.programId,
+        } as any)
+        .signers([seller])
+        .rpc();
+
+    const milestoneAccount = await program.account.milestone.fetch(milestonePda);
+    expect(milestoneAccount.index).to.equal(milestoneIndex);
+    expect(milestoneAccount.fundingBps).to.equal(milestoneBps);
+    expect(milestoneAccount.isFunded).to.be.false;
+  });
+
+  it("Fails to fund milestone with incorrect amount", async () => {
+    const wrongAmount = new BN(100 * 1000000); // 10%, but milestone is 20%
     try {
       await program.methods
-        .fundMilestone(totalAmount)
+        .fundMilestone(wrongAmount)
         .accounts({
           order: orderPda,
-          buyer: poorBuyer.publicKey,
-          buyerToken: poorBuyerAta,
+          milestone: milestonePda,
+          buyer: buyer.publicKey,
+          buyerToken: buyerTokenAccount,
           orderToken: orderTokenAccount,
           voucherMint: voucherMint,
-          buyerVoucherToken: await getAssociatedTokenAddress(voucherMint, poorBuyer.publicKey, false, TOKEN_2022_PROGRAM_ID),
+          buyerVoucherToken: buyerVoucherAccount,
           tokenMint: mint,
-          tokenProgram: TOKEN_2022_PROGRAM_ID,
+          tokenProgram: TOKEN_PROGRAM_ID,
           associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
-          rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-        })
-        .signers([poorBuyer])
+        } as any)
         .rpc();
-      expect.fail("Should have failed with insufficient funds");
+      expect.fail("Should have failed with incorrect funding amount");
     } catch (e) {
       // Expected
     }
   });
 
   it("Funds Milestone (Swaps USDC for Vouchers)", async () => {
-    const fundAmount = new BN(200 * 1000000); // 20%
+    const fundAmount = totalAmount.muln(milestoneBps).divn(10000);
     await program.methods
       .fundMilestone(fundAmount)
       .accounts({
         order: orderPda,
+        milestone: milestonePda,
         buyer: buyer.publicKey,
         buyerToken: buyerTokenAccount,
         orderToken: orderTokenAccount,
         voucherMint: voucherMint,
         buyerVoucherToken: buyerVoucherAccount,
         tokenMint: mint,
-        tokenProgram: TOKEN_2022_PROGRAM_ID,
+        tokenProgram: TOKEN_PROGRAM_ID,
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
-        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-      })
+      } as any)
       .rpc();
 
     const orderAccount = await program.account.order.fetch(orderPda);
     expect(orderAccount.fundedAmount.toString()).to.equal(fundAmount.toString());
     expect(orderAccount.status).to.equal(2); // Processing
 
+    const milestoneAccount = await program.account.milestone.fetch(milestonePda);
+    expect(milestoneAccount.isFunded).to.be.true;
+
     const voucherBalance = await provider.connection.getTokenAccountBalance(buyerVoucherAccount);
     expect(voucherBalance.value.amount).to.equal(fundAmount.toString());
+  });
+
+  it("Fails to fund the same milestone twice", async () => {
+    const fundAmount = totalAmount.muln(milestoneBps).divn(10000);
+    try {
+        await program.methods
+          .fundMilestone(fundAmount)
+          .accounts({
+            order: orderPda,
+            milestone: milestonePda,
+            buyer: buyer.publicKey,
+            buyerToken: buyerTokenAccount,
+            orderToken: orderTokenAccount,
+            voucherMint: voucherMint,
+            buyerVoucherToken: buyerVoucherAccount,
+            tokenMint: mint,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+            systemProgram: SystemProgram.programId,
+          } as any)
+          .rpc();
+        expect.fail("Should have failed as milestone is already funded");
+    } catch (e) {
+        // Expected
+    }
   });
 
   it("Fails to transfer Non-Transferable Vouchers", async () => {
@@ -281,7 +335,7 @@ describe("escrow-program", () => {
           associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
           rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-        })
+        } as any)
         .rpc();
       expect.fail("Settlement should have failed for underfunded order");
     } catch (e) {
@@ -295,17 +349,17 @@ describe("escrow-program", () => {
       .fundMilestone(remainingAmount)
       .accounts({
         order: orderPda,
+        milestone: milestonePda,
         buyer: buyer.publicKey,
         buyerToken: buyerTokenAccount,
         orderToken: orderTokenAccount,
         voucherMint: voucherMint,
         buyerVoucherToken: buyerVoucherAccount,
         tokenMint: mint,
-        tokenProgram: TOKEN_2022_PROGRAM_ID,
+        tokenProgram: TOKEN_PROGRAM_ID,
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
-        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-      })
+      } as any)
       .rpc();
 
     // Setup NFT again (as previous test didn't complete)
@@ -328,7 +382,7 @@ describe("escrow-program", () => {
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         systemProgram: SystemProgram.programId,
         rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-      })
+      } as any)
       .rpc();
 
     const orderAccount = await program.account.order.fetch(orderPda);
@@ -348,7 +402,7 @@ describe("escrow-program", () => {
           voucherMint: voucherMint,
           tokenMint: mint,
           tokenProgram: TOKEN_2022_PROGRAM_ID,
-        })
+        } as any)
         .rpc();
       expect.fail("Should have failed to cancel a completed order");
     } catch (e) {
@@ -372,7 +426,7 @@ describe("escrow-program", () => {
         seller: seller.publicKey,
         tokenMint: mint,
         systemProgram: SystemProgram.programId,
-      })
+      } as any)
       .rpc();
 
     await program.methods
@@ -387,7 +441,7 @@ describe("escrow-program", () => {
             tokenProgram: TOKEN_PROGRAM_ID,
             systemProgram: SystemProgram.programId,
             rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-        })
+        } as any)
         .signers([seller])
         .rpc();
 
@@ -397,7 +451,7 @@ describe("escrow-program", () => {
             .accounts({
                 order: dOrderPda,
                 arbitrator: buyer.publicKey, // Wrong signer
-            })
+            } as any)
             .rpc();
         expect.fail("Dispute should have failed for wrong arbitrator");
     } catch (e) {

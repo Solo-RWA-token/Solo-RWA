@@ -27,4 +27,13 @@ pub enum ErrorCode {
     /// Triggered when an unauthorized arbitrator tries to dispute an escrow.
     #[msg("Unauthorized arbitrator signer.")]
     UnauthorizedArbitrator,
+    /// Triggered when a milestone has already been funded.
+    #[msg("Milestone already funded.")]
+    MilestoneAlreadyFunded,
+    /// Triggered when the funding amount does not match the milestone target.
+    #[msg("Incorrect funding amount for this milestone.")]
+    IncorrectFundingAmount,
+    /// Triggered when a numerical overflow occurs.
+    #[msg("Numerical overflow.")]
+    NumericalOverflow,
 }
