@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, TokenAccount, Token, Burn, Transfer};
+use anchor_spl::token::{Token, Burn, Transfer};
 use crate::state::{Order, OrderStatus};
 use crate::error::ErrorCode;
 
