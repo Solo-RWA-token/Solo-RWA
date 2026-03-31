@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, Token};
+use anchor_spl::token::Token;
 use anchor_spl::token_2022::Token2022;
-use crate::state::{Order, Milestone, OrderStatus};
+use crate::state::{Order, OrderStatus};
 
 #[derive(Accounts)]
 pub struct ApproveOrder<'info> {

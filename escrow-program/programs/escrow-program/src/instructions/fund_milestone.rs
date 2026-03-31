@@ -1,8 +1,9 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{Mint, TokenAccount, Token};
+use anchor_spl::token::Token;
 use anchor_spl::associated_token::AssociatedToken;
 use crate::state::{Order, Milestone, OrderStatus};
 use crate::error::ErrorCode;
+use crate::events::MilestoneFunded;
 
 #[derive(Accounts)]
 #[instruction(amount: u64)]

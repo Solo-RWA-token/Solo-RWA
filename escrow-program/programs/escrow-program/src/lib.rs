@@ -69,10 +69,3 @@ pub mod escrow_program {
     }
 }
 
-#[event]
-pub struct MilestoneFunded {
-    pub order: Pubkey,
-    pub milestone_index: u8,
-    pub amount: u64,
-    pub funded_at: i64,
-}
