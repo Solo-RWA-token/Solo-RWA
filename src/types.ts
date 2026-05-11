@@ -19,4 +19,13 @@ export interface Order {
   status: 'processing' | 'confirmed' | 'delivered';
   createdAt: string;
   items?: Vehicle[];
+  milestones?: ProductionMilestone[];
+}
+
+export interface ProductionMilestone {
+  id: string;
+  stage: string;
+  tranchePercent: number;
+  verification: 'pending' | 'verified';
+  evidence?: string;
 }
